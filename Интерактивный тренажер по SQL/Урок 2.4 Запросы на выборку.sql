@@ -118,7 +118,7 @@ ORDER BY
 --Информацию вывести в отсортированном по номеру заказа виде.
 
 SELECT
-  buy_id, 
+  buy_id,
   DATEDIFF(date_step_end, date_step_beg) AS Количество_дней,
   CASE WHEN (
     DATEDIFF(date_step_end, date_step_beg)- days_delivery
@@ -152,6 +152,120 @@ WHERE
   author.name_author LIKE 'Достоевский Ф.М.'
 ORDER BY
   name_client;
+--Задание 9
+--Вывести жанр (или жанры), в котором было заказано больше всего экземпляров книг, указать это количество.
+--Последний столбец назвать Количество.
+
+SELECT
+  name_genre,
+  SUM(buy_book.amount) as Количество
+FROM
+  genre
+ JOIN book using(genre_id)
+ JOIN buy_book using(book_id)
+GROUP BY
+  name_genre
+HAVING
+  SUM(buy_book.amount) = (
+    SELECT
+      MAX(total) AS amount
+    FROM
+      (
+        SELECT
+          genre_id,
+          SUM(buy_book.amount) AS total
+        FROM
+          book
+          JOIN buy_book using(book_id)
+        GROUP BY
+          genre_id
+      ) t
+  );
+
+
+
+--Задание 10
+--Сравнить ежемесячную выручку от продажи книг за текущий и предыдущий годы. Для этого вывести год,
+--месяц, сумму выручки в отсортированном сначала по возрастанию месяцев, затем по возрастанию лет виде.
+--Название столбцов: Год, Месяц, Сумма.
+
+
+SELECT
+  YEAR(date_payment) AS Год,
+  MONTHNAME(date_payment) AS Месяц,
+  SUM(price * amount) AS Сумма
+FROM
+  buy_archive
+GROUP BY
+  Год,
+  Месяц
+UNION ALL
+SELECT
+  YEAR(date_step_end) AS Год,
+  MONTHNAME(date_step_end) AS Месяц,
+  SUM(price * buy_book.amount) AS Сумма
+FROM
+  buy_step
+  INNER JOIN buy_book USING(buy_id)
+  INNER JOIN book USING(book_id)
+WHERE
+  date_step_end IS NOT NULL
+  AND step_id = 1
+GROUP BY
+  Год,
+  Месяц
+ORDER BY
+  Месяц ASC,
+  Год ASC;
+
+--Задание 11
+--Для каждой отдельной книги необходимо вывести информацию о количестве проданных экземпляров и их стоимости
+--за 2020 и 2019 год . Вычисляемые столбцы назвать Количество и Сумма. Информацию отсортировать по убыванию стоимости.
+
+SELECT
+  title,
+  SUM(Количество) AS Количество,
+  SUM(Сумма) AS Сумма
+FROM
+  (
+    SELECT
+      title,
+      SUM(buy_book.amount) AS Количество,
+      SUM(price * buy_book.amount) AS Сумма
+    FROM
+      book
+       JOIN buy_book USING(book_id)
+       JOIN buy_step USING(buy_id)
+       JOIN step USING(step_id)
+    WHERE
+      name_step = 'Оплата'
+      AND date_step_end IS NOT Null
+    GROUP BY
+      title,
+      book_id
+    UNION
+    SELECT
+      title,
+      SUM(buy_archive.amount) AS Количество,
+      SUM(
+        buy_archive.price * buy_archive.amount
+      ) AS Сумма
+    FROM
+      buy_archive
+       JOIN book USING(book_id)
+    GROUP BY
+      title,
+      book_id
+  ) t
+GROUP BY
+ title
+ORDER BY
+ Сумма DESC;
+
+
+
+
+
 
 
 
